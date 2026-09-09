@@ -19,7 +19,11 @@ sprawdzonej biblioteki), wgrywane w `vendor/`, bo composer bywa na hostingu nied
   sesyjny JWT (HS256) + middleware `Auth::requireUserId`. `GET /api/me` do testu.
 - [x] **3. Ksiegi** — `GET/POST /api/ksiegi`, `GET/POST /api/ksiegi/{id}/czlonkowie`, role
   OWNER/EDITOR/VIEWER (egzekwowane serwerowo), zaproszenia po e-mailu realizowane przy logowaniu.
-- [ ] 4. Sync KPiR — rezerwacja wpisu (idempotentna), `PUT` z `If-Match` (409), delta pull.
+- [x] **4. Sync KPiR** — `POST /api/ksiegi/{id}/wpisy` (rezerwacja idempotentna),
+  `PUT .../{entryId}` z `If-Match: <rev>` (200/409/428), `GET .../wpisy?since=<seq>` (delta +
+  `nextCursor`, z tombstonami). Kwoty w groszach, `server_seq` monotoniczny.
+
+**Serwer (fazy 1–4) gotowy.** Pozostaje slice 5 (klient: `HttpKpirSyncSource` w repo aplikacji).
 
 ## Struktura
 

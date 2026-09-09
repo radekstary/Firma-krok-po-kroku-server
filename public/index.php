@@ -14,6 +14,7 @@ use Firma\Db;
 use Firma\GoogleVerifier;
 use Firma\Http;
 use Firma\HttpError;
+use Firma\Repo\KpirRepo;
 use Firma\Repo\KsiegaRepo;
 use Firma\Repo\UserRepo;
 use Firma\Roles;
@@ -151,6 +152,67 @@ $router->add('POST', '/api/ksiegi/{id}/czlonkowie', static function (array $p): 
         throw new HttpError(422, 'invalid_role', 'Rola musi byc EDITOR albo VIEWER.');
     }
     Http::json(['wynik' => KsiegaRepo::shareByEmail($p['id'], $email, $role)], 201);
+});
+
+/**
+ * POST /api/ksiegi/{id}/wpisy — rezerwacja/utworzenie wpisu (body = KpirEntryDto).
+ * Idempotentne po id: ponowienie zwraca istniejacy wpis, nie duplikat. Rola >= EDITOR.
+ */
+$router->add('POST', '/api/ksiegi/{id}/wpisy', static function (array $p): void {
+    $userId = Auth::requireUserId();
+    Roles::requireAtLeast(KsiegaRepo::roleOf($p['id'], $userId), Roles::EDITOR);
+    $dto = Http::jsonBody();
+    if (isset($dto['ksiegaId']) && (string) $dto['ksiegaId'] !== $p['id']) {
+        throw new HttpError(422, 'ksiega_mismatch', 'ksiegaId w tresci nie zgadza sie ze sciezka.');
+    }
+    Http::json(['entry' => KpirRepo::reserve($p['id'], $dto)], 201);
+});
+
+/**
+ * PUT /api/ksiegi/{id}/wpisy/{entryId} — edycja/tombstone z optymistyczna kontrola wersji.
+ * Naglowek `If-Match: <rev>` obowiazkowy. 409 przy niezgodnosci (zwraca aktualny stan). Rola >= EDITOR.
+ */
+$router->add('PUT', '/api/ksiegi/{id}/wpisy/{entryId}', static function (array $p): void {
+    $userId = Auth::requireUserId();
+    Roles::requireAtLeast(KsiegaRepo::roleOf($p['id'], $userId), Roles::EDITOR);
+
+    $ifMatch = Http::header('If-Match');
+    if ($ifMatch === null || !ctype_digit(trim($ifMatch))) {
+        throw new HttpError(428, 'missing_if_match', 'Wymagany naglowek If-Match z numerem rev.');
+    }
+    $expectedRev = (int) trim($ifMatch);
+
+    $dto = Http::jsonBody();
+    if (isset($dto['ksiegaId']) && (string) $dto['ksiegaId'] !== $p['id']) {
+        throw new HttpError(422, 'ksiega_mismatch', 'ksiegaId w tresci nie zgadza sie ze sciezka.');
+    }
+    if (isset($dto['id']) && (string) $dto['id'] !== $p['entryId']) {
+        throw new HttpError(422, 'id_mismatch', 'id w tresci nie zgadza sie ze sciezka.');
+    }
+
+    $result = KpirRepo::save($p['id'], $p['entryId'], $dto, $expectedRev);
+    switch ($result['status']) {
+        case 'ok':
+            Http::json(['entry' => $result['entry']]);
+            return;
+        case 'conflict':
+            Http::json(['error' => 'version_conflict', 'current' => $result['entry']], 409);
+            return;
+        default:
+            throw new HttpError(404, 'not_found', 'Nie znaleziono wpisu.');
+    }
+});
+
+/**
+ * GET /api/ksiegi/{id}/wpisy?since=<server_seq> — delta zmian (z tombstonami) + nextCursor.
+ * Rola >= VIEWER.
+ */
+$router->add('GET', '/api/ksiegi/{id}/wpisy', static function (array $p): void {
+    $userId = Auth::requireUserId();
+    Roles::requireAtLeast(KsiegaRepo::roleOf($p['id'], $userId), Roles::VIEWER);
+    $since = isset($_GET['since']) ? (string) $_GET['since'] : null;
+    $delta = KpirRepo::pull($p['id'], $since);
+    Http::json($delta);
 });
 
 try {
