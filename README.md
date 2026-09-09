@@ -17,7 +17,8 @@ sprawdzonej biblioteki), wgrywane w `vendor/`, bo composer bywa na hostingu nied
 - [x] **1. Szkielet** — front controller, router, PDO, `Http`, `/api/health`, `schema.sql`.
 - [x] **2. Auth** — `POST /api/auth/google` (weryfikacja ID tokenu Google: JWKS/aud/iss) →
   sesyjny JWT (HS256) + middleware `Auth::requireUserId`. `GET /api/me` do testu.
-- [ ] 3. Ksiegi — `GET/POST /api/ksiegi`, czlonkostwo, role, zaproszenia.
+- [x] **3. Ksiegi** — `GET/POST /api/ksiegi`, `GET/POST /api/ksiegi/{id}/czlonkowie`, role
+  OWNER/EDITOR/VIEWER (egzekwowane serwerowo), zaproszenia po e-mailu realizowane przy logowaniu.
 - [ ] 4. Sync KPiR — rezerwacja wpisu (idempotentna), `PUT` z `If-Match` (409), delta pull.
 
 ## Struktura

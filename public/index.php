@@ -14,7 +14,9 @@ use Firma\Db;
 use Firma\GoogleVerifier;
 use Firma\Http;
 use Firma\HttpError;
+use Firma\Repo\KsiegaRepo;
 use Firma\Repo\UserRepo;
+use Firma\Roles;
 use Firma\Router;
 
 require dirname(__DIR__) . '/src/bootstrap.php';
@@ -77,6 +79,8 @@ $router->add('POST', '/api/auth/google', static function (): void {
     $email = (string) ($claims['email'] ?? '');
 
     $user = UserRepo::upsertByGoogleSub($sub, $email);
+    // Zrealizuj zaproszenia wystawione na ten e-mail, zanim konto istnialo.
+    KsiegaRepo::claimInvitesFor($user['id'], $user['email']);
     $sessionToken = Auth::issueSessionToken($user['id']);
 
     Http::json([
@@ -98,6 +102,55 @@ $router->add('GET', '/api/me', static function (): void {
         throw new HttpError(401, 'invalid_session', 'Konto nie istnieje.');
     }
     Http::json(['id' => $user['id'], 'email' => $user['email']]);
+});
+
+/**
+ * GET /api/ksiegi — ksiegi zalogowanego uzytkownika (z jego rola).
+ */
+$router->add('GET', '/api/ksiegi', static function (): void {
+    $userId = Auth::requireUserId();
+    Http::json(['ksiegi' => KsiegaRepo::listForUser($userId)]);
+});
+
+/**
+ * POST /api/ksiegi — { "nazwa": "..." } → nowa ksiega; zakladajacy = OWNER.
+ */
+$router->add('POST', '/api/ksiegi', static function (): void {
+    $userId = Auth::requireUserId();
+    $body = Http::jsonBody();
+    $nazwa = trim((string) ($body['nazwa'] ?? ''));
+    if ($nazwa === '') {
+        throw new HttpError(422, 'missing_nazwa', 'Nazwa ksiegi jest wymagana.');
+    }
+    Http::json(['ksiega' => KsiegaRepo::create($userId, $nazwa)], 201);
+});
+
+/**
+ * GET /api/ksiegi/{id}/czlonkowie — lista czlonkow (tylko OWNER).
+ */
+$router->add('GET', '/api/ksiegi/{id}/czlonkowie', static function (array $p): void {
+    $userId = Auth::requireUserId();
+    Roles::requireAtLeast(KsiegaRepo::roleOf($p['id'], $userId), Roles::OWNER);
+    Http::json(['czlonkowie' => KsiegaRepo::members($p['id'])]);
+});
+
+/**
+ * POST /api/ksiegi/{id}/czlonkowie — { "email": "...", "role": "EDITOR|VIEWER" } (tylko OWNER).
+ * Gdy e-mail ma konto → czlonkostwo od razu; inaczej → zaproszenie do realizacji przy logowaniu.
+ */
+$router->add('POST', '/api/ksiegi/{id}/czlonkowie', static function (array $p): void {
+    $userId = Auth::requireUserId();
+    Roles::requireAtLeast(KsiegaRepo::roleOf($p['id'], $userId), Roles::OWNER);
+    $body = Http::jsonBody();
+    $email = trim((string) ($body['email'] ?? ''));
+    $role  = strtoupper(trim((string) ($body['role'] ?? '')));
+    if ($email === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+        throw new HttpError(422, 'invalid_email', 'Wymagany poprawny adres e-mail.');
+    }
+    if (!Roles::isAssignable($role)) {
+        throw new HttpError(422, 'invalid_role', 'Rola musi byc EDITOR albo VIEWER.');
+    }
+    Http::json(['wynik' => KsiegaRepo::shareByEmail($p['id'], $email, $role)], 201);
 });
 
 try {

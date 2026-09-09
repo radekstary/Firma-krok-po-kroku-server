@@ -19,10 +19,14 @@ final class Db
     {
         if (self::$pdo === null) {
             $cfg = Config::section('db');
-            $host    = (string) ($cfg['host'] ?? 'localhost');
             $name    = (string) ($cfg['name'] ?? '');
             $charset = (string) ($cfg['charset'] ?? 'utf8mb4');
-            $dsn = "mysql:host={$host};dbname={$name};charset={$charset}";
+            $socket  = (string) ($cfg['socket'] ?? '');
+            // Niektore hostingi wspoldzielone lacza sie po gniezdzie unix zamiast po TCP.
+            $where = $socket !== ''
+                ? "unix_socket={$socket}"
+                : 'host=' . (string) ($cfg['host'] ?? 'localhost');
+            $dsn = "mysql:{$where};dbname={$name};charset={$charset}";
             self::$pdo = new PDO(
                 $dsn,
                 (string) ($cfg['user'] ?? ''),
