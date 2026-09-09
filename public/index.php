@@ -8,10 +8,13 @@ declare(strict_types=1);
  * ksiegi i sync — kazda jako osobna trasa, bez zmiany tego pliku poza rejestracja.
  */
 
+use Firma\Auth;
 use Firma\Config;
 use Firma\Db;
+use Firma\GoogleVerifier;
 use Firma\Http;
 use Firma\HttpError;
+use Firma\Repo\UserRepo;
 use Firma\Router;
 
 require dirname(__DIR__) . '/src/bootstrap.php';
@@ -55,6 +58,46 @@ $router->add('GET', '/api/health', static function (): void {
         'time'   => gmdate('c'),
         'db'     => $db,
     ]);
+});
+
+/**
+ * POST /api/auth/google — wymiana ID tokenu Google na sesyjny JWT aplikacji.
+ * Body: { "idToken": "<Google ID token>" }. Weryfikuje token u zrodla (podpis JWKS, aud, iss),
+ * upsertuje uzytkownika po `sub` i zwraca { sessionToken, user }.
+ */
+$router->add('POST', '/api/auth/google', static function (): void {
+    $body = Http::jsonBody();
+    $idToken = trim((string) ($body['idToken'] ?? ''));
+    if ($idToken === '') {
+        throw new HttpError(422, 'missing_id_token', 'Brak pola idToken.');
+    }
+
+    $claims = GoogleVerifier::verify($idToken);
+    $sub   = (string) $claims['sub'];
+    $email = (string) ($claims['email'] ?? '');
+
+    $user = UserRepo::upsertByGoogleSub($sub, $email);
+    $sessionToken = Auth::issueSessionToken($user['id']);
+
+    Http::json([
+        'sessionToken' => $sessionToken,
+        'user' => [
+            'id'    => $user['id'],
+            'email' => $user['email'],
+        ],
+    ]);
+});
+
+/**
+ * GET /api/me — kto jestem (test middleware autoryzacji). Wymaga sesyjnego tokenu.
+ */
+$router->add('GET', '/api/me', static function (): void {
+    $userId = Auth::requireUserId();
+    $user = UserRepo::findById($userId);
+    if ($user === null) {
+        throw new HttpError(401, 'invalid_session', 'Konto nie istnieje.');
+    }
+    Http::json(['id' => $user['id'], 'email' => $user['email']]);
 });
 
 try {

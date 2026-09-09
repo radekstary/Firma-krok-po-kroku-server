@@ -15,7 +15,8 @@ sprawdzonej biblioteki), wgrywane w `vendor/`, bo composer bywa na hostingu nied
 ## Stan (slice'y)
 
 - [x] **1. Szkielet** — front controller, router, PDO, `Http`, `/api/health`, `schema.sql`.
-- [ ] 2. Auth — `POST /api/auth/google` (weryfikacja ID tokenu Google) → sesyjny JWT + middleware.
+- [x] **2. Auth** — `POST /api/auth/google` (weryfikacja ID tokenu Google: JWKS/aud/iss) →
+  sesyjny JWT (HS256) + middleware `Auth::requireUserId`. `GET /api/me` do testu.
 - [ ] 3. Ksiegi — `GET/POST /api/ksiegi`, czlonkostwo, role, zaproszenia.
 - [ ] 4. Sync KPiR — rezerwacja wpisu (idempotentna), `PUT` z `If-Match` (409), delta pull.
 
@@ -31,10 +32,13 @@ src/Db.php           PDO (prepared statements) + transakcje
 src/Http.php         odczyt zadania / wysylka JSON
 src/HttpError.php    wyjatek z kodem HTTP
 src/Router.php       dopasowanie tras z parametrami {id}
-src/Repo/            repozytoria (kolejne slice'y)
+src/Auth.php         sesyjny JWT (HS256): wydanie, weryfikacja, middleware requireUserId
+src/GoogleVerifier.php  weryfikacja ID tokenu Google (JWKS cache, aud, iss)
+src/Repo/UserRepo.php   upsert uzytkownika po google_sub
 schema.sql           schemat MySQL (import w phpMyAdmin)
 config.local.php.example  wzorzec konfiguracji (skopiuj do config.local.php)
-vendor/              zaleznosci PHP (firebase/php-jwt) — dodane w slice 2
+composer.json/.lock  manifest zaleznosci (vendor/ jest wersjonowany — patrz nizej)
+vendor/              zaleznosci PHP (firebase/php-jwt) — WGRANE do repo, bo cal.pl bez composera
 ```
 
 ## Uruchomienie lokalne (dev)
