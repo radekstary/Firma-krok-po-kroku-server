@@ -1,0 +1,12 @@
+# Sekrety — NIGDY do repo. Tylko config.local.php.example jest wersjonowany.
+/config.local.php
+
+# Zaleznosci PHP instalowane lokalnie i wgrywane na hosting (brak composera na cal.pl AC).
+# vendor/ jest CELOWO wersjonowany (patrz README) — nie ignorujemy go.
+/composer.phar
+
+# Narzedziowe / systemowe
+.DS_Store
+Thumbs.db
+*.log
+/tmp/

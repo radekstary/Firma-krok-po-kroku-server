@@ -1,0 +1,34 @@
+# Zabezpieczenie awaryjne na wypadek, gdyby docroot wskazywal na KATALOG GLOWNY repo zamiast
+# na /public (na hostingu wspoldzielonym nie zawsze da sie ustawic docroot). Wtedy ponizsze
+# reguly nie pozwalaja pobrac sekretow ani schematu wprost, a ruch API kieruja do public/index.php.
+#
+# DOCELOWO: ustaw docroot na /public (patrz README) — wtedy ten plik nie jest w ogole uzywany.
+
+# Nie wydawaj konfiguracji, schematu bazy, dokumentacji ani manifestow zaleznosci.
+<FilesMatch "\.(sql|md|example|lock)$">
+    Require all denied
+</FilesMatch>
+
+# Konfiguracja z sekretami — bezwzglednie niedostepna z zewnatrz.
+<Files "config.local.php">
+    Require all denied
+</Files>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Zablokuj bezposredni dostep do katalogow z kodem i zaleznosciami (kod PHP ma sie tylko
+    # WYKONYWAC przez front controller, nie byc pobierany).
+    RewriteRule ^(src|vendor)/ - [F]
+
+    # Wymus HTTPS (RODO).
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Kieruj cale API do front controllera w public/.
+    RewriteCond %{REQUEST_URI} ^/api/
+    RewriteRule ^ public/index.php [L]
+</IfModule>
+
+Options -Indexes

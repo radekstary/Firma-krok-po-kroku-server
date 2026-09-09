@@ -1,0 +1,36 @@
+<?php
+
+/**
+ * Wzorzec konfiguracji lokalnej. SKOPIUJ do `config.local.php` i uzupelnij prawdziwymi
+ * wartosciami na serwerze. Plik `config.local.php` jest w .gitignore — NIGDY nie trafia do repo
+ * (zawiera sekrety: haslo do bazy, sekret JWT, identyfikator klienta Google).
+ *
+ * Zwraca tablice asocjacyjna czytana przez src/Config.php.
+ */
+
+return [
+    // --- Baza danych (MySQL, InnoDB, utf8mb4) ---
+    'db' => [
+        'host'     => 'localhost',
+        'name'     => 'nazwa_bazy',
+        'user'     => 'uzytkownik_bazy',   // uzytkownik o MINIMALNYCH uprawnieniach (tylko ta baza)
+        'password' => 'haslo_bazy',
+        'charset'  => 'utf8mb4',
+    ],
+
+    // --- Sekret sesyjnego JWT (HS256) ---
+    // Wygeneruj losowo, np.: php -r "echo bin2hex(random_bytes(32));"
+    // Zmiana tego sekretu uniewaznia wszystkie wydane sesje.
+    'jwt_secret' => 'ZMIEN_MNIE_na_losowy_ciag_min_32_bajty',
+
+    // Czas zycia sesji w sekundach (domyslnie 30 dni).
+    'session_ttl' => 30 * 24 * 60 * 60,
+
+    // --- Google Sign-In ---
+    // Identyfikator klienta OAuth (typ: aplikacja Android / web). ID token od klienta musi miec
+    // `aud` rowne tej wartosci. Konfiguracja w Google Cloud Console (bezplatna).
+    'google_client_id' => 'XXXXXXXXXXXX.apps.googleusercontent.com',
+
+    // Wymuszaj HTTPS na poziomie aplikacji (oprocz .htaccess). Na lokalnym dev mozna dac false.
+    'force_https' => true,
+];

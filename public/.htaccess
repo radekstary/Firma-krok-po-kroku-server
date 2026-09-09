@@ -1,0 +1,26 @@
+# Front controller + wymuszenie HTTPS (Apache/mod_rewrite — standard na cal.pl AC).
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Wymus HTTPS (RODO). Gdy proxy hostingu podaje protokol w X-Forwarded-Proto, tez to lapiemy.
+    RewriteCond %{HTTPS} !=on [OR]
+    RewriteCond %{HTTP:X-Forwarded-Proto} =http
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Istniejace pliki/katalogi serwuj wprost (np. statyczne, jesli kiedys beda).
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Wszystko inne -> front controller.
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# Nie listuj katalogow.
+Options -Indexes
+
+# Nie serwuj plikow wrazliwych, gdyby docroot byl zle ustawiony.
+<FilesMatch "\.(sql|md|example)$">
+    Require all denied
+</FilesMatch>
