@@ -91,3 +91,23 @@ Dane KPiR to dane osobowe (kontrahenci, kwoty). Zasady, ktorych pilnujemy w kodz
 - **Role egzekwowane serwerowo** (OWNER/EDITOR/VIEWER) — slice 3.
 - Hosting w PL/UE (cal.pl spelnia). Wspoldzielenie z ksiegowa = powierzenie danych —
   rozwaz umowe powierzenia (DPA).
+
+### Audyt bezpieczenstwa (2026-09) — zrobione
+
+- **Token Google: wymog `email_verified`** — logowanie i realizacja zaproszen ufaja e-mailowi
+  tylko gdy Google go potwierdzil (inaczej 401). Chroni „tylko wskazana osoba".
+- **Zaproszenia wygasaja** po 14 dniach (TTL na `created_at` w `claimInvitesFor`).
+- **Naglowki**: `Cache-Control: no-store` (odpowiedz z tokenem nie jest cache'owana),
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`.
+- **Sekret JWT**: min. 32 znaki (wymuszane).
+
+### Audyt — do zrobienia przed publicznym udostepnieniem
+
+- **Rate-limiting** (logowanie, zapraszanie) — brak; dodac licznik (tabela / APCu / limit w .htaccess).
+- **Unieważnianie sesji serwerowo** — „Wyloguj" czysci token tylko na kliencie; JWT zyje do `exp`
+  (30 dni). Dodac `token_version` per user i sprawdzac w middleware.
+- **Enumeracja kont**: odpowiedz „czlonkowie" (kind membership/invite) ujawnia OWNEROWI, czy dany
+  e-mail ma konto. Niski priorytet.
+- **docroot = `/public`** (a nie katalog repo) — najczysciej trzyma `config.local.php`/`src`/`vendor`
+  poza web-rootem. Zweryfikowac tez, ze bare-repo `*.git` nie jest serwowane przez zadna domene.
+- **Klient**: token sesji w prywatnym DataStore (piaskownica); utwardzenie = EncryptedSharedPreferences.

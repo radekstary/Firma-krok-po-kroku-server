@@ -57,6 +57,15 @@ final class GoogleVerifier
             throw new HttpError(401, 'invalid_id_token', 'Token bez identyfikatora uzytkownika.');
         }
 
+        // Tozsamosc i realizacja zaproszen opieraja sie na e-mailu — musi byc obecny i POTWIERDZONY
+        // przez Google. Bez tego konto z niezweryfikowanym adresem mogloby przejac cudze zaproszenie.
+        $email = (string) ($claims['email'] ?? '');
+        $verified = ($claims['email_verified'] ?? null);
+        $isVerified = $verified === true || $verified === 'true' || $verified === 1 || $verified === '1';
+        if ($email === '' || !$isVerified) {
+            throw new HttpError(401, 'email_unverified', 'Wymagane konto Google ze zweryfikowanym adresem e-mail.');
+        }
+
         return $claims;
     }
 

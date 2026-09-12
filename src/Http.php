@@ -65,6 +65,10 @@ final class Http
     {
         http_response_code($status);
         header('Content-Type: application/json; charset=utf-8');
+        // Odpowiedzi API niosa dane osobowe i token sesji — nie wolno ich cache'owac.
+        header('Cache-Control: no-store');
+        header('X-Content-Type-Options: nosniff');
+        header('Referrer-Policy: no-referrer');
         echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 

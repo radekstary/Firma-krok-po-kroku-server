@@ -15,6 +15,9 @@ use Firma\Uuid;
  */
 final class KsiegaRepo
 {
+    /** Zaproszenie wygasa po 14 dniach (liczone od utworzenia). */
+    private const INVITE_TTL_SECONDS = 14 * 24 * 60 * 60;
+
     /**
      * Ksiegi uzytkownika wraz z rola.
      * @return list<array{id:string, nazwa:string, role:string, created_at:int}>
@@ -104,11 +107,14 @@ final class KsiegaRepo
         if ($email === '') {
             return 0;
         }
-        return (int) Db::transaction(function ($pdo) use ($userId, $email): int {
+        $minCreated = time() - self::INVITE_TTL_SECONDS;
+        return (int) Db::transaction(function ($pdo) use ($userId, $email, $minCreated): int {
+            // Tylko NIEWYGASLE zaproszenia (created_at w oknie TTL) — stare zapomniane nie dzialaja.
             $sel = $pdo->prepare(
-                'SELECT id, ksiega_id, role FROM ksiega_invite WHERE email = :email AND accepted = 0'
+                'SELECT id, ksiega_id, role FROM ksiega_invite
+                 WHERE email = :email AND accepted = 0 AND created_at >= :minCreated'
             );
-            $sel->execute([':email' => $email]);
+            $sel->execute([':email' => $email, ':minCreated' => $minCreated]);
             /** @var list<array{id:string, ksiega_id:string, role:string}> $invites */
             $invites = $sel->fetchAll();
             $count = 0;

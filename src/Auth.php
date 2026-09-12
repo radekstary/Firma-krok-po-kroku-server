@@ -64,8 +64,8 @@ final class Auth
     private static function secret(): string
     {
         $secret = (string) Config::get('jwt_secret', '');
-        if (strlen($secret) < 16) {
-            throw new HttpError(500, 'config_error', 'Sekret JWT jest za krotki lub nieustawiony.');
+        if (strlen($secret) < 32) {
+            throw new HttpError(500, 'config_error', 'Sekret JWT za krotki (min 32 znaki) lub nieustawiony.');
         }
         return $secret;
     }
