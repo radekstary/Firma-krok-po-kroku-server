@@ -78,7 +78,13 @@ check(count($delta['records']) === 1 && $delta['records'][0]['deleted'] === true
 check((int) $delta['nextCursor'] > (int) $cursor, 'kursor rosnie');
 check(count(RecordRepo::pull($K, $delta['nextCursor'])['records']) === 0, 'pull od najnowszego kursora jest pusty');
 
-// 5. Walidacja.
+// 5. Kolekcje etapu 2 sa przyjmowane (klucze z aplikacji: okres terminu, RRRR-MM, stale id).
+foreach ([['payment', 'MANUAL-1759650000000'], ['payment', 'PIT-Q-2026-Q1'], ['salary', '2026-03'], ['settings', 'tax'], ['logo', 'logo']] as [$col, $rid]) {
+    $r = RecordRepo::reserve($K, ['collection' => $col, 'id' => $rid, 'payload' => ['v' => 1]]);
+    check($r['collection'] === $col && $r['id'] === $rid && $r['rev'] === 1, "kolekcja $col przyjeta");
+}
+
+// 6. Walidacja.
 expectHttpError(422, fn() => RecordRepo::reserve($K, ['collection' => 'hasla', 'id' => 'x', 'payload' => []]), 'nieznana kolekcja');
 expectHttpError(422, fn() => RecordRepo::reserve($K, ['collection' => 'document', 'id' => '', 'payload' => []]), 'brak id');
 expectHttpError(422, fn() => RecordRepo::reserve($K, ['collection' => 'document', 'id' => 'y', 'payload' => 'tekst']), 'payload nie-obiekt');

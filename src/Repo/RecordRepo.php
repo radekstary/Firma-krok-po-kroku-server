@@ -21,7 +21,13 @@ use PDO;
 final class RecordRepo
 {
     /** Dozwolone kolekcje — reszta 422 (ochrona przed zasmiecaniem bazy dowolnymi typami). */
-    public const COLLECTIONS = ['document', 'contractor', 'company'];
+    public const COLLECTIONS = [
+        // Etap 1: dokumenty z faktura/rachunkiem, kontrahenci, dane firmy.
+        'document', 'contractor', 'company',
+        // Etap 2: status platnosci terminu (id = klucz okresu), wynagrodzenie z etatu (id = RRRR-MM),
+        // ustawienia firmowe (jeden rekord), logo faktury (jeden rekord, obraz w base64).
+        'payment', 'salary', 'settings', 'logo',
+    ];
 
     /** Maksymalny rozmiar payloadu (bajty JSON). Faktura z wieloma pozycjami miesci sie z zapasem. */
     public const MAX_PAYLOAD_BYTES = 512 * 1024;
