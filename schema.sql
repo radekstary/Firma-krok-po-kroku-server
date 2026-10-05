@@ -82,3 +82,24 @@ CREATE TABLE IF NOT EXISTS kpir_entries (
   FOREIGN KEY (ksiega_id) REFERENCES ksiega(id),
   INDEX idx_ksiega_seq (ksiega_id, server_seq)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Ogolne rekordy ksiegi (synchronizacja etap 1: dokumenty z faktura, kontrahenci, dane firmy).
+-- Serwer nie interpretuje `payload` (JSON) — wersjonuje go jak wpisy KPiR (rev, server_seq, tombstone).
+-- WDROZENIE na istniejacej bazie: wykonaj ponizsze dwa polecenia w phpMyAdmin (sa idempotentne).
+INSERT INTO counters (name, value) VALUES ('rec_seq', 0)
+  ON DUPLICATE KEY UPDATE value = value;
+
+CREATE TABLE IF NOT EXISTS sync_records (
+  ksiega_id CHAR(36) NOT NULL,
+  collection VARCHAR(32) NOT NULL,
+  id VARCHAR(36) NOT NULL,
+  payload MEDIUMTEXT NOT NULL,
+  created_at BIGINT NOT NULL,
+  updated_at BIGINT NOT NULL,
+  rev BIGINT NOT NULL,
+  deleted TINYINT NOT NULL DEFAULT 0,
+  server_seq BIGINT NOT NULL,
+  PRIMARY KEY (ksiega_id, collection, id),
+  FOREIGN KEY (ksiega_id) REFERENCES ksiega(id),
+  INDEX idx_rec_ksiega_seq (ksiega_id, server_seq)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

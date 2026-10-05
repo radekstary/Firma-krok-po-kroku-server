@@ -15,6 +15,15 @@ final class Db
 {
     private static ?PDO $pdo = null;
 
+    /**
+     * Testy: podstawia gotowe polaczenie (np. SQLite w pamieci), zeby logike repozytoriow dalo sie
+     * sprawdzic bez MySQL. W produkcji nieuzywane.
+     */
+    public static function useForTesting(?PDO $pdo): void
+    {
+        self::$pdo = $pdo;
+    }
+
     public static function pdo(): PDO
     {
         if (self::$pdo === null) {
