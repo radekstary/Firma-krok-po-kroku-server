@@ -23,6 +23,12 @@ sprawdzonej biblioteki), wgrywane w `vendor/`, bo composer bywa na hostingu nied
   `PUT .../{entryId}` z `If-Match: <rev>` (200/409/428), `GET .../wpisy?since=<seq>` (delta +
   `nextCursor`, z tombstonami). Kwoty w groszach, `server_seq` monotoniczny.
 
+- [x] **5. Rekordy ksiegi (sync etap 1)** — ogolny magazyn `sync_records` (dokumenty z faktura,
+  kontrahenci, dane firmy): `POST /api/ksiegi/{id}/rekordy`, `PUT .../rekordy/{collection}/{rid}`
+  z `If-Match`, `GET .../rekordy?since=`. Ta sama semantyka co KPiR. Testy: `php tests/RecordRepoTest.php`
+  (SQLite w pamieci). **Wdrozenie:** `git pull` + wykonanie w phpMyAdmin koncowego fragmentu
+  `schema.sql` (licznik `rec_seq` i tabela `sync_records`).
+
 **Serwer (fazy 1–4) gotowy.** Pozostaje slice 5 (klient: `HttpKpirSyncSource` w repo aplikacji).
 
 ## Struktura

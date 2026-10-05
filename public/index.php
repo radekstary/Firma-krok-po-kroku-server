@@ -16,6 +16,7 @@ use Firma\Http;
 use Firma\HttpError;
 use Firma\Repo\KpirRepo;
 use Firma\Repo\KsiegaRepo;
+use Firma\Repo\RecordRepo;
 use Firma\Repo\UserRepo;
 use Firma\Roles;
 use Firma\Router;
@@ -213,6 +214,51 @@ $router->add('GET', '/api/ksiegi/{id}/wpisy', static function (array $p): void {
     $since = isset($_GET['since']) ? (string) $_GET['since'] : null;
     $delta = KpirRepo::pull($p['id'], $since);
     Http::json($delta);
+});
+
+/**
+ * POST /api/ksiegi/{id}/rekordy — rezerwacja/utworzenie rekordu { collection, id, payload, deleted?, createdAt? }.
+ * Idempotentne po (collection, id). Rola >= EDITOR. (Synchronizacja etap 1: dokumenty, kontrahenci, dane firmy.)
+ */
+$router->add('POST', '/api/ksiegi/{id}/rekordy', static function (array $p): void {
+    $userId = Auth::requireUserId();
+    Roles::requireAtLeast(KsiegaRepo::roleOf($p['id'], $userId), Roles::EDITOR);
+    Http::json(['record' => RecordRepo::reserve($p['id'], Http::jsonBody())], 201);
+});
+
+/**
+ * PUT /api/ksiegi/{id}/rekordy/{collection}/{rid} — edycja/tombstone z `If-Match: <rev>`
+ * (200 / 409 z aktualnym stanem / 404 / 428). Rola >= EDITOR.
+ */
+$router->add('PUT', '/api/ksiegi/{id}/rekordy/{collection}/{rid}', static function (array $p): void {
+    $userId = Auth::requireUserId();
+    Roles::requireAtLeast(KsiegaRepo::roleOf($p['id'], $userId), Roles::EDITOR);
+    $ifMatch = Http::header('If-Match');
+    if ($ifMatch === null || !ctype_digit(trim($ifMatch))) {
+        throw new HttpError(428, 'missing_if_match', 'Wymagany naglowek If-Match z numerem rev.');
+    }
+    $result = RecordRepo::save($p['id'], $p['collection'], $p['rid'], Http::jsonBody(), (int) trim($ifMatch));
+    switch ($result['status']) {
+        case 'ok':
+            Http::json(['record' => $result['record']]);
+            return;
+        case 'conflict':
+            Http::json(['error' => 'version_conflict', 'current' => $result['record']], 409);
+            return;
+        default:
+            throw new HttpError(404, 'not_found', 'Nie znaleziono rekordu.');
+    }
+});
+
+/**
+ * GET /api/ksiegi/{id}/rekordy?since=<server_seq> — delta rekordow (z tombstonami) + nextCursor.
+ * Rola >= VIEWER.
+ */
+$router->add('GET', '/api/ksiegi/{id}/rekordy', static function (array $p): void {
+    $userId = Auth::requireUserId();
+    Roles::requireAtLeast(KsiegaRepo::roleOf($p['id'], $userId), Roles::VIEWER);
+    $since = isset($_GET['since']) ? (string) $_GET['since'] : null;
+    Http::json(RecordRepo::pull($p['id'], $since));
 });
 
 try {
